@@ -8,6 +8,7 @@
 import type { ErrorCodeKey } from '@/lib/error-surface'
 import type { TipId } from '@/lib/tips/catalog'
 
+import type { AppTourTranslations, HandoffTourTranslations } from './types_app_tour'
 import type { AuxTaskCopyMap } from './types_aux_tasks'
 import type { BootTranslations } from './types_boot'
 import type { ModelMenuTranslations } from './types_model_menu'
@@ -68,6 +69,7 @@ interface ModeOptionCopy {
 export interface Translations {
   /** Shared-metrics consent: first-run dialog + Settings › Safety toggles. */
   sharedMetrics: SharedMetricsTranslations
+  appTour: AppTourTranslations
   externalOpenFailed: {
     title: string
     message: string
@@ -3502,19 +3504,12 @@ export interface Translations {
     versionDetailsUncommittedChanges: string
   }
 
+  handoffTour: HandoffTourTranslations
   /** The guided first run's pre-written opening line — banked, not generated,
    *  so the first paint costs no model time. Translated per locale because the
    *  model is told to speak the user's language from its first real turn, and
    *  an English opener above a Japanese reply reads as two different agents.
    *  `nameSuggestion` offers the OS account name as a default. */
-  handoffTour: {
-    profileTitle: string
-    profileText: string
-    sessionsTitle: string
-    sessionsText: string
-    stayTitle: string
-    stayText: string
-  }
   guidedGreeting: {
     line: string
     nameSuggestion: (name: string) => string
