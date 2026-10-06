@@ -3367,6 +3367,7 @@
               "enum": [
                 "bot_room",
                 "browser",
+                "catalog",
                 "clarify",
                 "code_execution",
                 "coding",
@@ -3413,7 +3414,6 @@
                 "safe",
                 "search",
                 "session_search",
-                "setup",
                 "skills",
                 "spotify",
                 "terminal",
