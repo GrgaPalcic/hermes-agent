@@ -4,6 +4,7 @@ import { enAuxTasks } from './en_aux_tasks'
 import { enBoot } from './en_boot'
 import { enModelMenu } from './en_model_menu'
 import { enSharedMetrics } from './en_shared_metrics'
+import { enUninstallSection } from './en_uninstall_section'
 import type { Translations } from './types'
 
 export const en: Translations = {
@@ -1160,37 +1161,7 @@ export const en: Translations = {
     },
     fieldLabels: FIELD_LABELS,
     fieldDescriptions: FIELD_DESCRIPTIONS,
-    uninstallSection: {
-      dangerZone: 'Danger zone',
-      checkingInstalled: 'Checking what’s installed…',
-      uninstallHermes: 'Uninstall Hermes',
-      chooseHowMuch:
-        'Choose how much to remove. The app closes to finish the job; reopen the installer any time to come back.',
-      confirmUninstall: 'Confirm uninstall',
-      confirmBody: what => `This removes ${what}. This can’t be undone.`,
-      appLabel: 'App:',
-      couldNotStart: 'Uninstall could not start.',
-      uninstalling: 'Uninstalling…',
-      yesUninstall: 'Yes, uninstall',
-      options: {
-        gui: {
-          title: 'Uninstall Chat GUI only',
-          description: 'Remove this desktop app. The Hermes agent, your config, and chats all stay.',
-          consequence: 'the desktop Chat GUI (this app and its data)'
-        },
-        lite: {
-          title: 'Uninstall GUI + agent, keep my data',
-          description:
-            'Remove the app and the Hermes agent, but keep config, chats, and secrets for a future reinstall.',
-          consequence: 'the Chat GUI and the Hermes agent (config, chats, and secrets are kept)'
-        },
-        full: {
-          title: 'Uninstall everything',
-          description: 'Remove the app, the agent, and all user data — config, chats, scheduled jobs, secrets, logs.',
-          consequence: 'EVERYTHING — the Chat GUI, the Hermes agent, and all of your config, chats, secrets, and logs'
-        }
-      }
-    },
+    uninstallSection: enUninstallSection,
     poolLimits: {
       warmBotBackendsAria: 'Warm bot backends',
       warmBotBackendsTitle: 'Warm Bot Backends',
