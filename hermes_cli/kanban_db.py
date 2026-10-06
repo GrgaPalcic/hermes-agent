@@ -1353,6 +1353,9 @@ def create_task(
     in the active profile's projects.db — see ``_resolve_project_link``.
     ``workspace_kind=None`` (omitted) inherits a project-scoped board's project;
     an explicit ``"scratch"`` or ``project_id=""`` is a request for no project.
+    On a board with no project, an omitted kind is derived from the board's
+    ``default_workdir`` instead (git repo → ``worktree``, existing dir → ``dir``,
+    absent/invalid → scratch), matching the dashboard's recommendation.
     """
     from hermes_cli.kanban_db_graph import initial_task_state, inherit_creator_origin
     from hermes_cli.kanban_pr_acceptance import validate_contract
@@ -1374,6 +1377,22 @@ def create_task(
             project_id = (_board_meta_for(board).get("project_id") or "").strip() or None
         except Exception:
             pass
+    if workspace_kind is None and workspace_path is None and project_id is None:
+        # Board ``default_workdir`` inheritance the docs promise (#69787): an
+        # omitted kind derives from the board default rather than always
+        # scratch — a git toplevel means ``worktree`` (spawn-time resolution
+        # anchors ``<repo>/.worktrees/<id>``), an existing plain dir means
+        # ``dir``. Explicit values (``--workspace scratch``, a project link)
+        # always win, and scratch never inherits a real path (#28818/#30917).
+        try:
+            board_default = str(_board_meta_for(board).get("default_workdir") or "").strip()
+        except Exception:
+            board_default = ""
+        if board_default:
+            anchor = Path(board_default).expanduser()
+            if anchor.is_absolute() and anchor.is_dir():
+                from hermes_cli.kanban_db_workspace import _git_toplevel
+                workspace_kind = "worktree" if _git_toplevel(anchor) is not None else "dir"
     if workspace_kind is None:
         workspace_kind = "scratch"
     if workspace_kind not in VALID_WORKSPACE_KINDS:
