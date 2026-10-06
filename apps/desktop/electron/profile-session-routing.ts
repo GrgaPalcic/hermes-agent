@@ -768,6 +768,67 @@ export async function fetchRemoteProfileSessions(
   }
 }
 
+/** Per-profile budget for one remote's session read inside a sidebar aggregate.
+ * A healthy remote answers in well under a second; a dead URL hangs until the
+ * 180s backend readiness deadline. The aggregate must not inherit that deadline
+ * (#75712) — each remote gets this budget, then contributes an error entry
+ * instead of rows. */
+export const REMOTE_PROFILE_SESSION_BUDGET_MS = 10_000
+
+/** One remote profile's settled contribution to a sidebar aggregate: rows when
+ *  it answered inside its budget, otherwise a named error. Never a rejection —
+ *  one dead remote must not take the other profiles' rows down with it. */
+export interface RemoteProfileSessionsOutcome {
+  profile: string
+  list: SessionListResponse | null
+  error: string | null
+}
+
+/**
+ * #75712: fetch every remote profile's session list, each under its own
+ * bounded budget, and settle each outcome instead of letting one unavailable
+ * remote block (or silently vanish from) the whole sidebar aggregate. The
+ * underlying fetch keeps running past its budget — a remote that is merely
+ * still booting can answer on a later refresh.
+ */
+export async function settleRemoteProfileSessions(
+  remoteProfiles: readonly string[],
+  fetchRemote: (profile: string) => Promise<unknown>,
+  options: { budgetMs?: number } = {}
+): Promise<RemoteProfileSessionsOutcome[]> {
+  const budgetMs = options.budgetMs ?? REMOTE_PROFILE_SESSION_BUDGET_MS
+
+  return Promise.all(
+    remoteProfiles.map(async profile => {
+      let timer: ReturnType<typeof setTimeout> | undefined
+
+      try {
+        const list = (await Promise.race([
+          fetchRemote(profile),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error(`remote profile "${profile}" did not respond within ${budgetMs}ms`)),
+              budgetMs
+            )
+          })
+        ])) as SessionListResponse
+
+        return { profile, list, error: null }
+      } catch (error) {
+        return {
+          profile,
+          list: null,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      } finally {
+        if (timer) {
+          clearTimeout(timer)
+        }
+      }
+    })
+  )
+}
+
 /**
  * #85834: which remote profile owns `sessionId`, when a /api/sessions/{id}
  * caller supplied no profile hint. Reads the same per-remote lists the list
