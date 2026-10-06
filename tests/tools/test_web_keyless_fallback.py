@@ -148,6 +148,29 @@ class TestParseMcpBody:
                 else:
                     keyless_mcp._keenable_request("get", "/v1/search/public")
 
+    def test_keenable_error_keeps_status_and_reason(self):
+        import requests
+
+        response = requests.Response()
+        response.status_code = 403
+        response.headers["Content-Type"] = "text/plain; charset=utf-8"
+        response._content = b"anonymous access disabled"
+        with patch.object(requests, "post", return_value=response):
+            with pytest.raises(keyless_mcp.KeylessMCPError, match="^HTTP 403: anonymous access disabled$"):
+                keyless_mcp._keenable_request("post", "/v1/search/public", json={"query": "q"})
+
+    def test_keyless_firecrawl_error_keeps_status_and_reason(self, monkeypatch):
+        import httpx
+
+        from plugins.web.firecrawl import provider as firecrawl_provider
+
+        def _forbidden(url, **_kwargs):
+            return httpx.Response(403, text="your IP address looks suspicious\n", request=httpx.Request("POST", url))
+
+        monkeypatch.setattr(firecrawl_provider.httpx, "post", _forbidden)
+        with pytest.raises(httpx.HTTPStatusError, match="^HTTP 403: your IP address looks suspicious$"):
+            firecrawl_provider._KeylessFirecrawlClient().search(query="q", limit=1)
+
 
 class TestExaTextParsing:
     def test_parses_blocks(self):
@@ -521,6 +544,9 @@ class TestKeylessFailover:
             ("FORBIDDEN", False),
             ("extract failed for 'forbidden kingdom trailer': connection timeout", False),
             ("HTTP 400: malformed request", False),
+            ("HTTP 402: free credits exhausted", True),
+            ("HTTP 503: upstream unavailable", True),
+            ("HTTP 404: not found", False),
             ("", False),
         ],
     )
