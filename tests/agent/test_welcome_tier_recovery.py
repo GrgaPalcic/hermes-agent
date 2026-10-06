@@ -177,22 +177,26 @@ class TestLongWaitRule:
         assert recorded == []
 
 
+_ANON = SimpleNamespace(provider="nous", api_key=make_jwt())
+
+
 class TestOutageCopy:
     @pytest.mark.parametrize("reason", [FailoverReason.timeout, FailoverReason.overloaded,
                                         FailoverReason.server_error])
     def test_a_spent_transport_failure_on_the_welcome_host_reads_as_one_sentence(self, reason):
         from agent.turn_recovery import _welcome_outage_copy
         from hermes_cli.anon_auth import FREE_TIER_OUTAGE_COPY
-        assert _welcome_outage_copy(WELCOME, SimpleNamespace(reason=reason), anonymous=True) == FREE_TIER_OUTAGE_COPY
+        assert _welcome_outage_copy(_ANON, WELCOME, SimpleNamespace(reason=reason)) == FREE_TIER_OUTAGE_COPY
 
     def test_other_routes_and_other_reasons_keep_the_technical_summary(self):
         from agent.turn_recovery import _welcome_outage_copy
-        assert _welcome_outage_copy(PAID, SimpleNamespace(reason=FailoverReason.timeout), anonymous=True) == ""
-        assert _welcome_outage_copy(WELCOME, SimpleNamespace(reason=FailoverReason.rate_limit), anonymous=True) == ""
+        assert _welcome_outage_copy(_ANON, PAID, SimpleNamespace(reason=FailoverReason.timeout)) == ""
+        assert _welcome_outage_copy(_ANON, WELCOME, SimpleNamespace(reason=FailoverReason.rate_limit)) == ""
         # ``unknown`` is the catch-all for status-less local failures, not the free model's trouble.
-        assert _welcome_outage_copy(WELCOME, SimpleNamespace(reason=FailoverReason.unknown), anonymous=True) == ""
+        assert _welcome_outage_copy(_ANON, WELCOME, SimpleNamespace(reason=FailoverReason.unknown)) == ""
         # A named account's outage is its provider's trouble, not the free model's.
-        assert _welcome_outage_copy(WELCOME, SimpleNamespace(reason=FailoverReason.timeout)) == ""
+        named = SimpleNamespace(provider="nous", api_key=make_jwt(account_tier="free"))
+        assert _welcome_outage_copy(named, WELCOME, SimpleNamespace(reason=FailoverReason.timeout)) == ""
 
 
 class TestTerminalResultsCarryTheFreeTierBlock:
@@ -229,7 +233,7 @@ class TestTerminalResultsCarryTheFreeTierBlock:
         err = _refusal("at_capacity", retry_after=30)
         classified = _classify(err)
         result = max_retries_exhausted_result(
-            self._terminal_agent(), err, classified, max_retries=3, is_rate_limited=True, error_msg="429",
+            self._terminal_agent(), err, classified, attempts=3, is_rate_limited=True, error_msg="429",
             api_kwargs=None, api_messages=[], messages=[], conversation_history=[], api_call_count=3,
             approx_tokens=10, provider="nous", base_url=WELCOME, model="nous/welcome")
         assert result["free_tier"]["kind"] == "at_capacity"
@@ -241,7 +245,7 @@ class TestTerminalResultsCarryTheFreeTierBlock:
         err = _gateway_error(503, {"status": 503, "message": "The requested model is currently unavailable."})
         classified = _classify(err)
         result = max_retries_exhausted_result(
-            self._terminal_agent(), err, classified, max_retries=3, is_rate_limited=False, error_msg="503",
+            self._terminal_agent(), err, classified, attempts=3, is_rate_limited=False, error_msg="503",
             api_kwargs=None, api_messages=[], messages=[], conversation_history=[], api_call_count=3,
             approx_tokens=10, provider="nous", base_url=WELCOME, model="nous/welcome")
         assert result["free_tier"]["kind"] == "outage"
@@ -250,7 +254,7 @@ class TestTerminalResultsCarryTheFreeTierBlock:
         from agent.turn_recovery import max_retries_exhausted_result
         err = _gateway_error(503, {"status": 503, "message": "The requested model is currently unavailable."})
         result = max_retries_exhausted_result(
-            self._terminal_agent(), err, _classify(err, base_url=PAID), max_retries=3, is_rate_limited=False,
+            self._terminal_agent(), err, _classify(err, base_url=PAID), attempts=3, is_rate_limited=False,
             error_msg="503", api_kwargs=None, api_messages=[], messages=[], conversation_history=[],
             api_call_count=3, approx_tokens=10, provider="nous", base_url=PAID, model="hermes-4")
         assert "free_tier" not in result
