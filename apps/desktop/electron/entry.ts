@@ -32,9 +32,14 @@ function configuredElectronFlags(env: NodeJS.ProcessEnv): string[] {
 
 const linux = process.platform === 'linux'
 const electronFlags = linux ? configuredElectronFlags(process.env) : []
+
 // Present only when the NVIDIA proprietary kernel module is loaded (not
 // nouveau, not WSL's dxg passthrough).
-const nvidiaProprietaryDriver = linux && existsSync('/proc/driver/nvidia/version')
+const nvidiaVersion = linux && existsSync('/proc/driver/nvidia/version')
+  ? readFileSync('/proc/driver/nvidia/version', 'utf8')
+  : ''
+
+const nvidiaProprietaryDriver = nvidiaVersion !== '' && !/Open Kernel Module/.test(nvidiaVersion)
 
 const args = wslgLaunchArgs(
   process.argv.slice(1),
